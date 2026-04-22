@@ -9,12 +9,13 @@ dotenv.config()
 
 const app = express()
 app.use(cors())
-app.use(clerkMiddleware())
-
 app.use(express.json())
 
-// Inngest endpoint
+// Inngest endpoint (Must be before authentication middleware)
 app.use("/api/inngest", serve({ client: inngest, functions }));
+
+app.use(clerkMiddleware())
+
 
 
 app.get('/', (req, res) => {
