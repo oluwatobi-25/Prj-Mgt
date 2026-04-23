@@ -1,4 +1,4 @@
-export const protect = async (res, req, next) => {
+export const protect = async (req, res, next) => {
     try {
         const { userId } = await req.auth()
     

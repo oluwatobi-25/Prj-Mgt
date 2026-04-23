@@ -60,25 +60,58 @@ const syncWorkspaceCreation = inngest.createFunction(
     { id: "sync-workspace-creation", triggers: [{ event: "clerk/organization.created" }] },
     async ({ event }) => {
         const { data } = event;
-        await prisma.workspace.create({
-            data: {
-                id: data.id,
-                name: data.name,
-                slug: data.slug,
-                ownerId: data.created_by,
-                image_url: data.image_url,
-            },
+        const requestedSlug = data.slug || data.id;
+        let workspaceSlug = requestedSlug;
+
+        const existingWorkspaceBySlug = await prisma.workspace.findUnique({
+            where: { slug: workspaceSlug },
         });
 
+        if (existingWorkspaceBySlug && existingWorkspaceBySlug.id !== data.id) {
+            workspaceSlug = `${requestedSlug}-${data.id.slice(0, 8)}`;
+        }
 
-        //Add creator as ADMIN member
-        await prisma.workspaceMember.create({
-            data: {
-                userId: DataTransfer.created_by,
+        const existingWorkspace = await prisma.workspace.findUnique({
+            where: { id: data.id },
+        });
+
+        if (existingWorkspace) {
+            await prisma.workspace.update({
+                where: { id: data.id },
+                data: {
+                    name: data.name,
+                    slug: workspaceSlug,
+                    ownerId: data.created_by,
+                    image_url: data.image_url,
+                },
+            });
+        } else {
+            await prisma.workspace.create({
+                data: {
+                    id: data.id,
+                    name: data.name,
+                    slug: workspaceSlug,
+                    ownerId: data.created_by,
+                    image_url: data.image_url,
+                },
+            });
+        }
+
+        //Add creator as ADMIN member if they are not already a member
+        await prisma.workspaceMember.upsert({
+            where: {
+                userId_workspaceId: {
+                    userId: data.created_by,
+                    workspaceId: data.id,
+                },
+            },
+            update: { role: "ADMIN" },
+            create: {
+                userId: data.created_by,
                 workspaceId: data.id,
-                role: "ADMIN"
-            }
-        })
+                role: "ADMIN",
+            },
+        });
     }
 );
 
@@ -87,7 +120,7 @@ const syncWorkspaceUpdate = inngest.createFunction(
     { id: "sync-workspace-update", triggers: [{ event: "clerk/organization.updated" }] },
     async ({ event }) => {
         const { data } = event;
-        await prisma.workspace.create({
+        await prisma.workspace.update({
             where:{
                  id: data.id,
             },
@@ -105,7 +138,7 @@ const syncWorkspaceDelete = inngest.createFunction(
     { id: "sync-workspace-delete", triggers: [{ event: "clerk/organization.delete" }] },
     async ({ event }) => {
         const { data } = event;
-        await prisma.workspace.create({
+        await prisma.workspace.delete({
         where:{
             id: data.id,
             }

@@ -1,3 +1,5 @@
+import prisma from "../configs/prisma.js";
+
 // Get all workspaces for user
 export const getUserWorkspaces = async (req, res) => {
     try {
