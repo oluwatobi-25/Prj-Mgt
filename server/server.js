@@ -4,7 +4,7 @@ import cors from 'cors'
 import { clerkMiddleware } from '@clerk/express'
 import { serve } from "inngest/express";
 import { inngest, functions } from "./inngest/index.js";
-import workspaceRouter from './routes/workingspaceRoute.js';
+import workspaceRouter from './routes/workspaceRoute.js';
 import { protect } from './middlewares/authMiddleware.js';
 
 dotenv.config()
