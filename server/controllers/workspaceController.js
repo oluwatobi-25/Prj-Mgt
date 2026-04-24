@@ -40,7 +40,7 @@ export const addMember = async (req, res) => {
             return res.status(404).json({ message: "User not found" })
         }
 
-        if (!workspaceId || !role) { // ✅ added missing !
+        if (!workspaceId || !role) { 
             return res.status(400).json({ message: "Missing required parameters" })
         }
 

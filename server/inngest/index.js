@@ -12,9 +12,9 @@ const syncUserCreation = inngest.createFunction(
         await prisma.user.create({
             data: {
                 id: data.id,
-                name: data.first_name + " " + data.last_name,
-                email: data.email_addresses[0].email_address,
-                image: data.image_url,
+                name: data?.first_name + " " + data?.last_name,
+                email: data?.email_addresses[0]?.email_address,
+                image: data?.image_url,
             },
         });
     }
@@ -34,24 +34,20 @@ const syncUserDeletion = inngest.createFunction(
 );
 
 //Inngest Function to update user data to a database
-const syncUserUpdate = inngest.createFunction(
+const syncUserUpdation = inngest.createFunction(
     { id: "sync-user-update", triggers: [{ event: "clerk/user.updated" }] },
     async ({ event }) => {
         const { data } = event;
-        const userData = {
-            name: data.first_name + " " + data.last_name,
-            email: data.email_addresses[0].email_address,
-            image: data.image_url,
-        };
-
-        await prisma.user.upsert({
-            where: { id: data.id },
-            update: userData,
-            create: {
-                id: data.id,
-                ...userData,
+        await prisma.user.update({
+            where: {
+                id: data.id
             },
-        });
+        data: {
+            email: data?.email_address[0]?.email_address,
+            name: data?.first_name + " "  + data?.last_name,
+            image: data?.image_url
+            }
+        })
     }
 );
 
@@ -116,7 +112,7 @@ const syncWorkspaceCreation = inngest.createFunction(
 );
 
 //Inngest function to update workspace  data to a databse
-const syncWorkspaceUpdate = inngest.createFunction(
+const syncWorkspaceUpdation = inngest.createFunction(
     { id: "sync-workspace-update", triggers: [{ event: "clerk/organization.updated" }] },
     async ({ event }) => {
         const { data } = event;
@@ -134,7 +130,7 @@ const syncWorkspaceUpdate = inngest.createFunction(
 )
 
 //Inngest Function to delete workspace data to a database
-const syncWorkspaceDelete = inngest.createFunction(
+const syncWorkspaceDeletion = inngest.createFunction(
     { id: "sync-workspace-delete", triggers: [{ event: "clerk/organization.delete" }] },
     async ({ event }) => {
         const { data } = event;
@@ -167,9 +163,9 @@ const syncWorkspaceMemberCreation = inngest.createFunction(
 export const functions = [
     syncUserCreation,
     syncUserDeletion,
-    syncUserUpdate,
+    syncUserUpdation,
     syncWorkspaceCreation,
-    syncWorkspaceUpdate,
-    syncWorkspaceDelete,
+    syncWorkspaceUpdation,
+    syncWorkspaceDeletion,
     syncWorkspaceMemberCreation
 ];
