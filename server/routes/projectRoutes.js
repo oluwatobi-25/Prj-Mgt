@@ -4,7 +4,7 @@ import { addMember, createProject, updateProject } from "../controllers/projectC
 const projectRouter = express.Router();
 
 projectRouter.post('/', createProject)
-projectRouter.post('/', updateProjectProject)
+projectRouter.patch('/:projectId', updateProject)
 projectRouter.post('/:projectId/addMember', addMember)
 
 export default projectRouter
