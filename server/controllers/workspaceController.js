@@ -88,3 +88,51 @@ export const addMember = async (req, res) => {
         })
     }
 }
+
+// Sync Clerk org membership with workspace
+export const syncOrgMembership = async (req, res) => {
+    try {
+        const auth = await req.auth();
+        const { userId, orgId } = auth;
+
+        if (!userId) {
+            return res.status(400).json({ message: "User not found" });
+        }
+
+        if (!orgId) {
+            return res.json({ message: "User not part of any organization", synced: false });
+        }
+
+        // The workspace ID is the same as the Clerk org ID (set by inngest)
+        const workspace = await prisma.workspace.findUnique({
+            where: { id: orgId },
+            include: { members: true }
+        });
+
+        if (!workspace) {
+            return res.json({ message: "No workspace found for this organization", synced: false });
+        }
+
+        // Check if user is already a member
+        const existingMember = workspace.members.find(m => m.userId === userId);
+
+        if (existingMember) {
+            return res.json({ message: "User already a member", synced: true, workspaceId: workspace.id });
+        }
+
+        // Add user as member (default: MEMBER role)
+        await prisma.workspaceMember.create({
+            data: {
+                userId,
+                workspaceId: workspace.id,
+                role: "MEMBER"
+            }
+        });
+
+        res.json({ message: "User synced to workspace successfully", synced: true, workspaceId: workspace.id });
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: error.message });
+    }
+}

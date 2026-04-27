@@ -41,6 +41,11 @@ enum Priority {
     HIGH
 }
 
+enum ProjectMemberRole {
+    MEMBER
+    LEADER
+}
+
 model User {
     id        String   @id
     name      String
@@ -106,11 +111,12 @@ model Project {
 }
 
 model ProjectMember {
-    id        String  @id @default(uuid())
+    id        String               @id @default(uuid())
     userId    String
     projectId String
-    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    role      ProjectMemberRole    @default(MEMBER)
+    user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+    project   Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
     @@unique([userId, projectId]) // prevent duplicate membership
 }

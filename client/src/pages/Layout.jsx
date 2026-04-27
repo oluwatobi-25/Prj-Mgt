@@ -25,7 +25,7 @@ const Layout = () => {
         if (isLoaded && user) {
             dispatch(fetchWorkspaces({ getToken }))
         }
-    }, [user, isLoaded, dispatch, getToken])
+    }, [user, isLoaded, dispatch])
 
     if (!isLoaded) return (
         <div className='flex items-center justify-center h-screen bg-white dark:bg-zinc-950'>

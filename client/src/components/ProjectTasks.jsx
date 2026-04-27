@@ -2,9 +2,11 @@ import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate} from "react-router-dom";
 import { deleteTask, updateTask } from "../features/workspaceSlice";
+import api from "../configs/api";
 import { Bug, CalendarIcon, GitCommit, MessageSquare, Square, Trash, XIcon, Zap } from "lucide-react";
+import { useAuth } from "@clerk/react";
 
 const typeIcons = {
     BUG: { icon: Bug, color: "text-red-600 dark:text-red-400" },
@@ -20,8 +22,10 @@ const priorityTexts = {
     HIGH: { background: "bg-emerald-100 dark:bg-emerald-950", prioritycolor: "text-emerald-600 dark:text-emerald-400" },
 };
 
-const ProjectTasks = ({ tasks }) => {
+const ProjectTasks = ({ tasks, projectId }) => {
+    const {getToken} = useAuth()
     const dispatch = useDispatch();
+    // const currentWorkspace = useSelector((state) => state.workspace?.currentWorkspace);
     const navigate = useNavigate();
     const [selectedTasks, setSelectedTasks] = useState([]);
 
@@ -57,9 +61,11 @@ const ProjectTasks = ({ tasks }) => {
     const handleStatusChange = async (taskId, newStatus) => {
         try {
             toast.loading("Updating status...");
+            const token = await getToken()
 
-            //  Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await api.put(`/api/projects/${projectId}/tasks/${taskId}`, {status: newStatus}, 
+                {headers: {Authorization: `Bearer ${token}`}}
+            )
 
             let updatedTask = structuredClone(tasks.find((t) => t.id === taskId));
             updatedTask.status = newStatus;
@@ -77,13 +83,18 @@ const ProjectTasks = ({ tasks }) => {
         try {
             const confirm = window.confirm("Are you sure you want to delete the selected tasks?");
             if (!confirm) return;
+            const token = await getToken()
 
             toast.loading("Deleting tasks...");
 
-            //  Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            for (const taskId of selectedTasks) {
+                await api.delete(`/api/projects/${projectId}/tasks/${taskId}`, {
+                    headers: {Authorization: `Bearer ${token}`}
+                })
+            }
 
             dispatch(deleteTask(selectedTasks));
+            setSelectedTasks([]);
 
             toast.dismissAll();
             toast.success("Tasks deleted successfully");

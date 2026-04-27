@@ -5,8 +5,11 @@ import { inngest } from "../inngest/index.js";
 export const createTask = async (req, res) =>{
     try {
         const {userId} = await req.auth();
-        const {projectId, title, description, type, status, priority, assigneeId, due_date}
+        const { projectId: projectIdParam } = req.params;
+        const {projectId: projectIdBody, title, description, type, status, priority, assigneeId, due_date}
          = req.body
+
+        const projectId = projectIdParam || projectIdBody;
 
         const origin = req.get('origin')
 
@@ -32,6 +35,7 @@ export const createTask = async (req, res) =>{
                 priority,
                 assigneeId,
                 status,
+                type,
                 due_date: new Date(due_date)
             }
         })
@@ -63,19 +67,18 @@ export const createTask = async (req, res) =>{
 
 export const updateTask = async(req, res) =>{
     try {
+        const { projectId, taskId } = req.params;
 
         const task = await prisma.task.findUnique({
-            where: {id: req.params.id}
+            where: {id: taskId}
         })
 
         if(!task){
             return res.status(404).json({message: "Task not found"})
         }
 
-       const {userId} = await req.auth();
-        // const {projectId, title, description, type, status, priority, assigneeId, due_date}
-        //  = req.body
-
+        const {userId} = await req.auth();
+        const { title, description, type, status, priority, assigneeId, due_date } = req.body;
 
         //check if user has admin role for project
         const project = await prisma.project.findUnique({
@@ -90,8 +93,16 @@ export const updateTask = async(req, res) =>{
         }
 
         const updatedTask = await prisma.task.update({
-            where: {id: req.params.id},
-            data:req.body
+            where: {id: taskId},
+            data: {
+                title,
+                description,
+                type,
+                status,
+                priority,
+                assigneeId,
+                due_date: due_date ? new Date(due_date) : undefined
+            }
         })
 
         res.json({task: updatedTask, message: "Task Updated successfully"})
@@ -106,21 +117,21 @@ export const updateTask = async(req, res) =>{
 
 export const deleteTask = async(req, res) =>{
         try {
-            
+            const { projectId, taskId } = req.params;
             const {userId} = await req.auth()
-            const {tasksIds} = req.body
-            const tasks = await prisma.task.findMany({
-                where: {id: {in: tasksIds}}
+
+            const task = await prisma.task.findUnique({
+                where: {id: taskId}
             })
 
-            if(tasks.length === 0){
-                return res.status(404).json({  message: "Task not found" })
+            if(!task){
+                return res.status(404).json({message: "Task not found"})
             }
 
             const project = await prisma.project.findUnique({
-            where: {id: tasks[0].projectId},
-            include: {members: {include: {user: true}}}
-        })
+                where: {id: projectId},
+                include: {members: {include: {user: true}}}
+            })
 
             if(!project){
                 return res.status(404).json({message: "Project not found"});
@@ -128,13 +139,14 @@ export const deleteTask = async(req, res) =>{
                 return res.status(403).json({message: "You don't have admin privileges for this project"});
             }
 
-            await prisma.task.deleteMany({
-                where: {id: {in:tasksIds}}
+            await prisma.task.delete({
+                where: {id: taskId}
             })
 
-        res.json({message: "Task deleted successfully"})
+            res.json({message: "Task deleted successfully"})
 
         } catch (error) {
-            
+            console.log(error)
+            res.status(500).json({ message: error.code || error.message })
         }
 }

@@ -4,7 +4,13 @@ import api from "../configs/api";
 
 export const fetchWorkspaces = createAsyncThunk('workspace/fetchWorkspaces', async ({ getToken }) => {
     try {
+        // First, try to sync Clerk org membership
         const token = await getToken();
+        await api.post('/api/workspaces/sync-org', {}, {
+            headers: { Authorization: `Bearer ${token}` }
+        }).catch(err => console.log("Sync org error (expected if no org):", err.message));
+
+        // Then fetch workspaces
         const { data } = await api.get('/api/workspaces', {
             headers: { Authorization: `Bearer ${token}` }
         });
@@ -51,7 +57,7 @@ const workspaceSlice = createSlice({
             }
         },
         deleteWorkspace: (state, action) => {
-            state.workspaces = state.workspaces.filter((w) => w._id !== action.payload);
+            state.workspaces = state.workspaces.filter((w) => w.id !== action.payload);
         },
         addProject: (state, action) => {
             state.currentWorkspace.projects.push(action.payload);

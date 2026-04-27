@@ -58,8 +58,7 @@ export const createProject = async (req, res) => {
             await prisma.projectMember.createMany({
                 data: tmembersToAdd.map((memberId) => ({
                     projectId: project.id,
-                    userId: memberId,
-                    role: "MEMBER"
+                    userId: memberId
                 }))
             });
         }
@@ -94,6 +93,7 @@ export const createProject = async (req, res) => {
 export const updateProject = async(req, res)=> {
     try {
         const {userId} = await req.auth();
+        const { projectId } = req.params;
         const { workspaceId, description, name, status, start_date, end_date, team_members, team_lead, progress, priority } = req.body;
 
         //check if user has admin role for workspace
@@ -110,7 +110,7 @@ export const updateProject = async(req, res)=> {
 
         if(!workspace.members.some((member) => member.user.id === userId && member.role === "ADMIN")){
             const project = await prisma.project.findUnique({
-                where: { id }
+                where: { id: projectId }
             })
 
             if(!project){
@@ -121,7 +121,7 @@ export const updateProject = async(req, res)=> {
         }
 
         const project = await prisma.project.update({
-            where: { id },
+            where: { id: projectId },
             data: {
                 workspaceId,
                 name,
@@ -129,11 +129,13 @@ export const updateProject = async(req, res)=> {
                 status,
                 priority,
                 progress,
-                team_lead: teamLead.id,
+                team_lead: team_lead,
                 start_date: start_date ? new Date(start_date) : null,
                 end_date: end_date ? new Date(end_date) : null
             }
         });
+
+        res.json({message: "Project updated successfully", project})
 
     } catch (error) {
         res.status(500).json({ message: error.code || error.message })

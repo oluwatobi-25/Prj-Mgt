@@ -1,25 +1,41 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check, Plus } from "lucide-react";
+import { ChevronDown, Check, Plus, Trash2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { setCurrentWorkspace } from "../features/workspaceSlice";
+import { setCurrentWorkspace, fetchWorkspaces, deleteWorkspace } from "../features/workspaceSlice";
 import { useNavigate } from "react-router-dom";
-import { dummyWorkspaces } from "../assets/assets";
-import { useOrganizationList, useClerk, useOrganization } from "@clerk/react";
+import { useOrganizationList, useClerk, useOrganization, useAuth } from "@clerk/react";
+import toast from "react-hot-toast";
 
 function WorkspaceDropdown() {
 
     const {setActive, userMemberships, isLoaded} = useOrganizationList({userMemberships: true});
+    const { getToken } = useAuth();
 
     const { openCreateOrganization } = useClerk();
     const { organization } = useOrganization();
 
+    const dispatch = useDispatch();
     const { workspaces } = useSelector((state) => state.workspace);
     const currentWorkspace = useSelector((state) => state.workspace?.currentWorkspace || null);
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
-    const dispatch = useDispatch();
     const navigate = useNavigate();
+
+    // Sync Redux workspaces with Clerk organizations
+    useEffect(() => {
+        if (isLoaded && userMemberships?.data && workspaces.length > 0) {
+            // Get current org IDs from Clerk
+            const clerkOrgIds = new Set(userMemberships.data.map(m => m.organization.id));
+            
+            // Check if any Redux workspace isn't in Clerk (was deleted)
+            const deletedWorkspaces = workspaces.filter(w => !clerkOrgIds.has(w.id));
+            
+            if (deletedWorkspaces.length > 0) {
+                deletedWorkspaces.forEach(w => dispatch(deleteWorkspace(w.id)));
+            }
+        }
+    }, [isLoaded, userMemberships?.data]);
 
     const onSelectWorkspace = (organizationId) => {
         setActive({ organization: organizationId });
@@ -40,10 +56,21 @@ function WorkspaceDropdown() {
     }, []);
 
     useEffect(() => {
-        if(currentWorkspace && isLoaded && organization?.id !== currentWorkspace.id){
-            setActive({ organization: currentWorkspace.id });
-        }   
-    }, [currentWorkspace, setActive, isLoaded, organization?.id])
+        if (currentWorkspace && isLoaded && organization?.id !== currentWorkspace.id) {
+            const isMember = userMemberships?.data?.some(m => m.organization.id === currentWorkspace.id);
+            if (isMember) {
+                setActive({ organization: currentWorkspace.id }).catch(console.error);
+            } else if (userMemberships?.data?.length > 0) {
+                setActive({ organization: userMemberships.data[0].organization.id }).catch(console.error);
+                dispatch(setCurrentWorkspace(userMemberships.data[0].organization.id));
+            } else {
+                setActive({ organization: null }).catch(console.error);
+            }
+        } else if (isLoaded && userMemberships?.data?.length === 0 && organization?.id) {
+            // Also clear if we have an active org in Clerk but no actual memberships
+            setActive({ organization: null }).catch(console.error);
+        }
+    }, [currentWorkspace?.id, isLoaded, organization?.id, userMemberships?.data, dispatch, setActive]);
 
 
     return (
@@ -69,7 +96,7 @@ function WorkspaceDropdown() {
                         <p className="text-xs text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-2 px-2">
                             Workspaces
                         </p>
-                        {userMemberships.data.map((membership) => (
+                        {userMemberships?.data?.map((membership) => (
                             <div 
                                 key={membership.organization.id} 
                                 onClick={() => onSelectWorkspace(membership.organization.id)} 
